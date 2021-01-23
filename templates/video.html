@@ -116,8 +116,15 @@
         }
       });
       peer.on('error', err => {
-        alert('アドバイザーがログインしていません。');
-        console.log(err.message);
+        if (err.type === 'unavailable-id') {
+          alert('別の人が利用中です。\n「戻る」を押してください。');
+        } else if (err.type === 'peer-unavailable') {
+          alert('アドバイザーがログインしていません。\n「戻る」を押してください。');
+        } else {
+          alert('エラーが発生しました\n' + err.message);
+        }
+        console.log('type:' + err.type);
+        console.log('type:' + err.message);
       });
       peer.on('close', () => {
         alert('通信が切断しました。');
