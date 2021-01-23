@@ -4,24 +4,37 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+    <style type="text/css">
+    </style>
     <title>Beauty</title>
   </head>
   <body>
     <div class="card">
-      <button class="btn btn-primary btn-block" onclick="location.href='./adviser'">
+      <img src="./static/images/beauty_s.png" class="img-fluid">
+      <button class="btn btn-primary btn-block" onclick="move('./adviser')">
         アドバイザーログイン
       </button>
-    </div>
-    <div class="card">
-      <button class="btn btn-secondary btn-block" onclick="location.href='./user'">
+      <button class="btn btn-secondary btn-block" onclick="move('./user')">
         お客様ログイン
       </button>
+      <div class="input-group mb-3">
+        <input type="number" id="texttm" class="form-control" placeholder="最大通話時間"
+            value="60" min="10" max="3600">
+        <div class="input-group-append">
+          <span class="input-group-text">秒の通話</span>
+        </div>
+      </div>
     </div>
-  
+
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
     <script>
+      function move(path) {
+        const elm = document.getElementById('texttm');
+        location.href = path + "?" + elm.value;
+      }
+/*
       function chgView() {
         const mirrorElm = document.getElementById('mirror');
         const enlargeElm = document.getElementById('enlarge');
@@ -46,7 +59,7 @@
       function chkEnlarge(value) {
         chgView();
       }
-
+*/
     </script>
   </body>
 </html>

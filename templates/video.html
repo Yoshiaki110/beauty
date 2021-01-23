@@ -10,7 +10,7 @@
   <body>
     <div class="row">
       <div class="col-2">
-        <p id="my-id"></p>
+        <p id="lastSec"></p>
       </div>
       <div class="col-2">
         
@@ -46,6 +46,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
     <script>
+      const urlParam = location.search.substring(1);
+      var lastSec = Number(urlParam);
+      lastSec = lastSec ? lastSec : 60;
+      function period() {
+        --lastSec
+        document.getElementById('lastSec').textContent = '残り ' + lastSec + '秒';
+        if (lastSec < 0) {
+          alert('時間切れです');
+          history.back();
+          return;
+        }
+        setTimeout(period, 1000);
+      }
+
       const peerid = '{{ peerid }}'
       function chgView() {
         const mirrorElm = document.getElementById('mirror');
@@ -96,6 +110,8 @@
       }).catch( error => {
         // 失敗時にはエラーログを出力
         console.error('mediaDevice.getUserMedia() error:', error);
+        alert('エラー発生\n' + error);
+        history.back();
         return;
       });
   
@@ -110,21 +126,23 @@
       
       //PeerID取得
       peer.on('open', () => {
-        //document.getElementById('my-id').textContent = peer.id;
         if (peerid === 'user') {
           call('adviser');
+          setTimeout(period, 1000);
         }
       });
       peer.on('error', err => {
         if (err.type === 'unavailable-id') {
-          alert('別の人が利用中です。\n「戻る」を押してください。');
+          alert('別の人が利用中です。');
         } else if (err.type === 'peer-unavailable') {
-          alert('アドバイザーがログインしていません。\n「戻る」を押してください。');
+          alert('アドバイザーがログインしていません。');
         } else {
           alert('エラーが発生しました\n' + err.message);
         }
         console.log('type:' + err.type);
         console.log('type:' + err.message);
+        history.back();
+        return;
       });
       peer.on('close', () => {
         alert('通信が切断しました。');
