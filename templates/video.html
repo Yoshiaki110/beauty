@@ -129,8 +129,9 @@
       //PeerID取得
       peer.on('open', () => {
         if (peerid === 'user') {
-          call('adviser');
-          setTimeout(period, 1000);
+          //call('adviser');
+          setTimeout(call, 1000, 'adviser');
+          setTimeout(period, 2000);
         }
       });
       peer.on('error', err => {
@@ -159,6 +160,7 @@
       // イベントリスナを設置する関数
       const setEventListener = mediaConnection => {
         mediaConnection.on('stream', stream => {
+          //alert('接続された');
           // video要素にカメラ映像をセットして再生
           const videoElm = document.getElementById('their-video')
           videoElm.srcObject = stream;
