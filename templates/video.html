@@ -47,12 +47,14 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
     <script>
       const urlParam = location.search.substring(1);
+      var mc = null;
       var lastSec = Number(urlParam);
       lastSec = lastSec ? lastSec : 60;
       function period() {
         --lastSec
         document.getElementById('lastSec').textContent = '残り ' + lastSec + '秒';
         if (lastSec < 0) {
+          mc.close(true);
           alert('時間切れです');
           history.back();
           return;
@@ -142,16 +144,16 @@
         console.log('type:' + err.type);
         console.log('type:' + err.message);
         history.back();
-        return;
       });
       peer.on('close', () => {
         alert('通信が切断しました。');
+        history.back();
       });
   
       // 発信処理
       function call(theirID) {
-        const mediaConnection = peer.call(theirID, localStream);
-        setEventListener(mediaConnection);
+        mc = peer.call(theirID, localStream);
+        setEventListener(mc);
       };
   
       // イベントリスナを設置する関数
