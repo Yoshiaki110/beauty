@@ -34,6 +34,16 @@ def adviser():
 def user():
     return render_template('video.html', apikey=SKYWAY_APIKEY, peerid='user')
 
+@app.route('/enkaku')
+def enkaku():
+    return render_template('enkaku.html')
+
+@app.route('/oshaku')
+def oshaku():
+    serve =  request.args.get('serve', default = 1, type = int)
+    aikotoba =  request.args.get('aikotoba', default = '')
+    return render_template('oshaku.html', apikey=SKYWAY_APIKEY, serve=serve, aikotoba=aikotoba)
+
 @app.route("/api/answer", methods=['POST'])
 def answer():
     return jsonify({})
