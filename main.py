@@ -36,13 +36,15 @@ def user():
 
 @app.route('/enkaku')
 def enkaku():
-    return render_template('enkaku.html')
+    #return render_template('enkaku.html')
+    return render_template('aioshaku.html')
 
 @app.route('/oshaku')
 def oshaku():
-    serve =  request.args.get('serve', default = 1, type = int)
-    aikotoba =  request.args.get('aikotoba', default = '')
-    return render_template('oshaku.html', apikey=SKYWAY_APIKEY, serve=serve, aikotoba=aikotoba)
+    #serve =  request.args.get('serve', default = 1, type = int)
+    #aikotoba =  request.args.get('aikotoba', default = '')
+    #return render_template('oshaku.html', apikey=SKYWAY_APIKEY, serve=serve, aikotoba=aikotoba)
+    return render_template('aioshaku.html')
 
 @app.route("/api/answer", methods=['POST'])
 def answer():

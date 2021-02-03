@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+  <title>遠隔お酌 デスクトップ版</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.1/control_utils.css" crossorigin="anonymous">
+  <style type="text/css">
+    .their_video {
+      position:relative;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      &.selfie {
+        transform: scale(-1, 1);
+      }
+    }
+    .output_canvas {
+      position:absolute;
+      left: 0;
+      top: 0;
+    }
+  </style>
+  <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.3.0.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.1/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.1/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.1/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.1/hands.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-2">
+        自分のID
+      </div>
+      <div class="col-2">
+        <input type="text" id="my-id" size="5" required></input>
+      </div>
+      <div class="col-2">
+        <button id="set-peer">設定</button>
+      </div>
+      <div class="col-2">
+        通話先のID
+      </div>
+      <div class="col-2">
+        <input type="text" id="their-id" size="5" required></input>
+      </div>
+      <div class="col-2">
+        <button id="make-call" disabled>発信</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-4">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="oshaku" onchange="chkOshaku(this.checked)">
+          <label class="form-check-label" for="oshaku">お酌をうける</label>
+        </div>
+      </div>
+      <div class="col-2">
+        フレームレート
+      </div>
+      <div class="col-2" class="form-group">
+        <select id="custom-select-1b" class="custom-select custom-select-sm"  onchange="chgFrameRate(this.value)">
+          <option value="1">１フレーム毎秒</option>
+          <option value="2">２フレーム毎秒</option>
+          <option value="5">５フレーム毎秒</option>
+          <option value="8">８フレーム毎秒</option>
+          <option value="10">１０フレーム毎秒</option>
+          <option value="15">１５フレーム毎秒</option>
+          <option value="20">２０フレーム毎秒</option>
+        </select>
+      </div>
+      <div class="col-2">
+      </div>
+      <div class="col-2">
+        <button id="disconnect" onclick="window.location.reload();">切断</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-3">
+        <video id="my-video" width="auto" class="img-fluid" autoplay muted playsinline></video>
+      </div>
+      <div class="col-9">
+        <div class="card">
+          <video id="their-video" class="img-fluid" autoplay muted playsinline></video>
+          <div class="card-img-overlay">
+            <canvas class="output_canvas" class="img-fluid"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!--div class="control-panel"></div-->
+
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+</body>
+</html>
+
+<script>
+  let localStream = null;
+  let peer = null;
+
+  // 起動時の処理
+  window.onload = function() {
+    var param = location.search;
+    console.log('url param', param);
+    const elm = document.getElementById('my-id');
+    if (param == '') {
+      var msec = new Date().getTime();
+      msec = msec - ((Math.floor(msec / 10000)) * 10000);
+      elm.value = '' + msec;
+    } else {
+      elm.value = param.slice(1);
+    }
+    // AIのカメラ処理より、後で行う
+    setTimeout(cameraInit, 500);
+  }
+
+  // カメラの初期化
+  function cameraInit() {
+    // カメラ映像取得
+    navigator.mediaDevices.getUserMedia({video: true, audio: true})
+      .then( stream => {
+      // 成功時にvideo要素にカメラ映像をセットし、再生
+      const videoElm = document.getElementById('my-video');
+      videoElm.srcObject = stream;
+      videoElm.play();
+      // 着信時に相手にカメラ映像を返せるように、グローバル変数に保存しておく
+      localStream = stream;
+    }).catch( error => {
+      // 失敗時にはエラーログを出力
+      console.error('mediaDevice.getUserMedia() error:', error);
+      return;
+    });
+  }
+
+  // Peer作成
+  function setPeer(peerid) {
+    const peer = new Peer(
+      peerid,
+      {
+        key: 'eaabab8a-c201-473b-87b2-8b9d32e22ee0',
+        debug: 3
+      }
+    );
+
+    // PeerIDが取得できたら
+    peer.on('open', () => {
+      console.log('peer.id', peer.id);
+      // ボタンのイネーブル・ディセーブル
+      const myIdElm = document.getElementById('my-id');
+      myIdElm.readOnly  = true;
+      const setPeerElm = document.getElementById('set-peer');
+      setPeerElm.disabled = true;
+      const makeCallElm = document.getElementById('make-call');
+      makeCallElm.disabled = false;
+    });
+
+    // 発信ボタンの処理
+    document.getElementById('make-call').onclick = () => {
+      const theirID = document.getElementById('their-id').value;
+      const mediaConnection = peer.call(theirID, localStream);
+      setEventListener(mediaConnection);
+    };
+
+    //着信時の処理
+    peer.on('call', mediaConnection => {
+      mediaConnection.answer(localStream);
+      setEventListener(mediaConnection);
+    });
+  }
+
+  // 設定ボタンの処理
+  document.getElementById('set-peer').onclick = () => {
+    const myID = document.getElementById('my-id').value;
+    if (myID === '') {
+      alert('自分のIDを指定してください');
+      return;
+    }
+    setPeer(myID);
+  };
+
+  // Videoのイベントリスナを設置する関数
+  const setEventListener = mediaConnection => {
+    mediaConnection.on('stream', stream => {
+      // video要素にカメラ映像をセットして再生
+      const videoElm = document.getElementById('their-video')
+      videoElm.srcObject = stream;
+      videoElm.play();
+      // 発信ボタンをディセーブル
+      const makeCallElm = document.getElementById('make-call');
+      makeCallElm.disabled = true;
+      // 受信した画像を解析する
+      setTimeout(kaiseki, 2000, videoElm);
+    });
+  }
+
+
+
+
+  // AIの処理
+  const canvasElement = document.getElementsByClassName('output_canvas')[0];
+  const controlsElement = document.getElementsByClassName('control-panel')[0];
+  const canvasCtx = canvasElement.getContext('2d');
+  const OSHAKU_MODE = false;
+  const FRAME_RATE = 1;
+  var oshakuMode = OSHAKU_MODE;
+  var frameRate = FRAME_RATE;
+  var lastDegree = -100;
+
+  function chkOshaku(value) {
+    oshakuMode = value;
+  }
+
+  function chgFrameRate(value) {
+    frameRate = Number(value);
+  }
+
+  // AI解析の結果
+  function onResults(results) {
+    //canvasCtx.save();
+    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+    if (oshakuMode && results.multiHandLandmarks && results.multiHandedness) {
+      for (let index = 0; index < results.multiHandLandmarks.length; index++) {
+        const landmarks = results.multiHandLandmarks[index];
+        // スケルトン表示
+        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
+        drawLandmarks(canvasCtx, landmarks, { color: 'green', fillColor: 'white'});
+        // 角度を表示
+        canvasCtx.strokeStyle = 'red';
+        canvasCtx.lineWidth = 10;
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(landmarks[4]['x'] * canvasElement.width, landmarks[4]['y'] * canvasElement.height);     // 親指：指先
+        canvasCtx.lineTo(landmarks[20]['x'] * canvasElement.width, landmarks[20]['y'] * canvasElement.height);   // 小指：指先
+        canvasCtx.closePath();
+        canvasCtx.stroke();
+
+        var radian = Math.atan2(landmarks[4]['y'] - landmarks[20]['y'], landmarks[4]['x'] - landmarks[20]['x'])
+        var degree = Math.floor(radian * 180 / Math.PI)
+        // 90度回転(0-180)
+        degree += 90
+        if (degree < 0)
+          degree = Math.abs(degree)
+        if (degree > 180)
+          degree = Math.abs(degree - 360)
+        console.log("radian", radian, "degree", degree)
+/*
+        if (Math.abs(degree - lastDegree) > 2) {
+          // サーバへ送りたいデータ
+          const data = {angle: degree};
+          // FetchAPIのオプション準備
+          const param  = {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8"
+            },
+            // リクエストボディ
+            body: JSON.stringify(data)
+          };
+          // paramを付ける以外はGETと同じ
+          fetch("/api/angle", param)
+            .then((res)=>{
+              return( res.json() );
+            })
+            .then((json)=>{
+              //console.log('json', json)
+            });
+          lastDegree = degree;
+        }
+*/
+      }
+    }
+    //canvasCtx.restore();
+  }
+
+  // 解析の初期化
+  const hands = new Hands({locateFile: (file) => {
+    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.1/${file}`;
+  }});
+  const options = {
+    maxNumHands: 1,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  }
+  hands.setOptions(options);
+  hands.onResults(onResults);
+
+  // 解析の依頼
+  function kaiseki(videoElement) {
+//    console.log('videoElement', videoElement.clientWidth, videoElement.clientHeight);
+//    console.log('canvasElement', canvasElement.width, canvasElement.height)
+    // レスポンシブ対応
+    canvasElement.width = videoElement.clientWidth;
+    canvasElement.height = videoElement.clientHeight;
+    // 解析の依頼
+    hands.send({image: videoElement});
+    // フレームレート後に再度解析
+    setTimeout(kaiseki, 1000 / frameRate, videoElement);
+  }
+</script>
