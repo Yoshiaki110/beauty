@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 
 def get_facepos(img_path):
+    pass
+    '''
     face_cascade = cv2.CascadeClassifier('./haarcascades/haarcascade_frontalface_default.xml')
     eye_cascade = cv2.CascadeClassifier('./haarcascades/haarcascade_eye_tree_eyeglasses.xml')
 
@@ -33,3 +35,4 @@ def get_facepos(img_path):
             "eyes": eyes_dst
         })
     return result
+    '''
