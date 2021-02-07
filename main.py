@@ -57,11 +57,14 @@ def ehon():
 
 @app.route("/api/face", methods=['POST'])
 def face():
+    print("** /api/face start")
     img = request.files['image']
     name = img.filename
     path = os.path.join(app.config['UPLOAD_FOLDER'], name)
     img.save(path)
     face_pos = get_facepos(path)
+    print(face_pos)
+    print("** /api/face start")
     return jsonify(face_pos)
 
 
