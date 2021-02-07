@@ -99,6 +99,7 @@
 
       // 写真選択ページ
       document.getElementById("image").addEventListener("change", function(e) {
+        document.getElementById("pict-btn").disabled = true;      // 決定ボタン無効化
         var file = e.target.files;
         var reader = new FileReader();
         reader.readAsDataURL(file[0]);
@@ -106,7 +107,6 @@
           var source = reader.result;
           drawImage(reader.result);         // 選択した画像を表示
           api();
-          var canvas = document.getElementById("pict-btn").disabled = false;
         }
       }, false);
 
@@ -145,8 +145,13 @@
             v.h *= 1.5;
             drawRect(++i, v.x, v.y, v.w, v.h);     // 顔の位置を囲む
           })
-          var file = document.getElementById("pict-index").max = faces.length;
+          if (faces.length) {
+            document.getElementById("pict-btn").disabled = false;    // 決定ボタン有効化
+            document.getElementById("pict-index").value = "1";
+            document.getElementById("pict-index").max = faces.length;
+          }
         }).catch(function(error) {
+          document.getElementById("pict-index").value = "";
           alert("error:" + error);
         });
       }
