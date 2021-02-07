@@ -67,7 +67,7 @@
 
           <!-- ３ページ目 -->
           <div class="tab-pane fade" id="item3" role="tabpanel" aria-labelledby="item3-tab">
-            <canvas id="vcanvas" style="display:none"></canvas>
+            <canvas id="vcanvas"></canvas>
             <img id="image1" src="./static/images/momo_1.jpg" style="display:none">
             <img id="image2" src="./static/images/momo_2.jpg" style="display:none">
             <canvas id="canvas1" class="img-fluid"></canvas>
@@ -149,6 +149,9 @@
             document.getElementById("pict-btn").disabled = false;    // 決定ボタン有効化
             document.getElementById("pict-index").value = "1";
             document.getElementById("pict-index").max = faces.length;
+          } else {
+            document.getElementById("pict-index").value = "";
+            alert("顔の検出ができません");
           }
         }).catch(function(error) {
           document.getElementById("pict-index").value = "";
