@@ -1,5 +1,5 @@
-import numpy as np
-import cv2
+#import numpy as np
+#import cv2
 
 def get_facepos(img_path):
     pass
