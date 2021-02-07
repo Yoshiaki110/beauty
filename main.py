@@ -2,9 +2,9 @@ from flask import Flask, request, abort, render_template, send_file, Response, j
 from flask_cors import CORS
 from flask_socketio import SocketIO
 import threading
-#import base64
+import base64
 
-#from face_detect import get_facepos
+from face_detect import get_facepos
 import os
 import json
 import uuid
