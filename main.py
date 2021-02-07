@@ -2,7 +2,9 @@ from flask import Flask, request, abort, render_template, send_file, Response, j
 from flask_cors import CORS
 from flask_socketio import SocketIO
 import threading
+import base64
 
+from face_detect import get_facepos
 import os
 import json
 import uuid
@@ -15,6 +17,8 @@ from zipfile import ZipFile
 app = Flask(__name__)
 CORS(app)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False     # jsonifyでのエラーを抑止するため
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+app.config['UPLOAD_FOLDER'] = './tmp'
 socketio = SocketIO(app, async_mode=None)
 #postConfirm = True
 
@@ -45,6 +49,19 @@ def oshaku():
     #aikotoba =  request.args.get('aikotoba', default = '')
     #return render_template('oshaku.html', apikey=SKYWAY_APIKEY, serve=serve, aikotoba=aikotoba)
     return render_template('aioshaku.html')
+
+@app.route("/ehon", methods=['GET'])
+def ehon():
+    return render_template('ehon.html')
+
+@app.route("/api/face", methods=['POST'])
+def face():
+    img = request.files['image']
+    name = img.filename
+    path = os.path.join(app.config['UPLOAD_FOLDER'], name)
+    img.save(path)
+    face_pos = get_facepos(path)
+    return jsonify(face_pos)
 
 @app.route("/api/answer", methods=['POST'])
 def answer():
