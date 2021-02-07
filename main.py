@@ -17,7 +17,7 @@ from zipfile import ZipFile
 app = Flask(__name__)
 CORS(app)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False     # jsonifyでのエラーを抑止するため
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 app.config['UPLOAD_FOLDER'] = './tmp'
 socketio = SocketIO(app, async_mode=None)
 #postConfirm = True
@@ -64,7 +64,7 @@ def face():
     img.save(path)
     face_pos = get_facepos(path)
     print(face_pos)
-    print("** /api/face start")
+    print("** /api/face end")
     return jsonify(face_pos)
 
 
