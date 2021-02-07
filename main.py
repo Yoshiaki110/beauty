@@ -50,7 +50,7 @@ def oshaku():
     #return render_template('oshaku.html', apikey=SKYWAY_APIKEY, serve=serve, aikotoba=aikotoba)
     return render_template('aioshaku.html')
 
-'''
+
 @app.route("/ehon", methods=['GET'])
 def ehon():
     return render_template('ehon.html')
@@ -63,7 +63,7 @@ def face():
     img.save(path)
     face_pos = get_facepos(path)
     return jsonify(face_pos)
-'''
+
 
 @app.route("/api/answer", methods=['POST'])
 def answer():
