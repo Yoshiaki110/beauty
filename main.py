@@ -4,7 +4,7 @@ from flask_socketio import SocketIO
 import threading
 import base64
 
-from face_detect import get_facepos
+#from face_detect import get_facepos
 import os
 import json
 import uuid
@@ -17,8 +17,8 @@ from zipfile import ZipFile
 app = Flask(__name__)
 CORS(app)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False     # jsonifyでのエラーを抑止するため
-#app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
-#app.config['UPLOAD_FOLDER'] = './tmp'
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024
+app.config['UPLOAD_FOLDER'] = './tmp'
 socketio = SocketIO(app, async_mode=None)
 #postConfirm = True
 
