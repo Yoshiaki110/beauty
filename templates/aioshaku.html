@@ -97,7 +97,6 @@
       </div>
     </div>
   </div>
-  <!--div class="control-panel"></div-->
 
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
@@ -120,6 +119,7 @@
       elm.value = '' + msec;
     } else {
       elm.value = param.slice(1);
+      setPeer(elm.value);
     }
     // AIのカメラ処理より、後で行う
     setTimeout(cameraInit, 500);
@@ -177,6 +177,22 @@
       mediaConnection.answer(localStream);
       setEventListener(mediaConnection);
     });
+    peer.on('error', err => {
+      if (err.type === 'unavailable-id') {
+        alert('利用できないIDです。');
+      } else if (err.type === 'peer-unavailable') {
+        alert('相手が受信可能でありません。');
+      } else {
+        alert('エラーが発生しました\n' + err.message);
+      }
+      console.log('type:' + err.type);
+      console.log('type:' + err.message);
+      history.back();
+    });
+    peer.on('close', () => {
+      alert('通信が切断しました。');
+      history.back();
+    });
   }
 
   // 設定ボタンの処理
@@ -200,7 +216,7 @@
       const makeCallElm = document.getElementById('make-call');
       makeCallElm.disabled = true;
       // 受信した画像を解析する
-      setTimeout(kaiseki, 2000, videoElm);
+      setTimeout(kaiseki, 1000, videoElm);
     });
   }
 
@@ -213,6 +229,7 @@
   const canvasCtx = canvasElement.getContext('2d');
   const OSHAKU_MODE = false;
   const FRAME_RATE = 1;
+  var hands = null;
   var oshakuMode = OSHAKU_MODE;
   var frameRate = FRAME_RATE;
   var lastDegree = -100;
@@ -223,6 +240,7 @@
 
   function chgFrameRate(value) {
     frameRate = Number(value);
+    hands = null;
   }
 
   // AI解析の結果
@@ -283,22 +301,23 @@
     //canvasCtx.restore();
   }
 
-  // 解析の初期化
-  const hands = new Hands({locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.1/${file}`;
-  }});
-  const options = {
-    maxNumHands: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  }
-  hands.setOptions(options);
-  hands.onResults(onResults);
-
   // 解析の依頼
   function kaiseki(videoElement) {
 //    console.log('videoElement', videoElement.clientWidth, videoElement.clientHeight);
 //    console.log('canvasElement', canvasElement.width, canvasElement.height)
+    if (!hands) {
+      // 解析の初期化
+      hands = new Hands({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.1/${file}`;
+      }});
+      const options = {
+        maxNumHands: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      }
+      hands.setOptions(options);
+      hands.onResults(onResults);
+    }
     // レスポンシブ対応
     canvasElement.width = videoElement.clientWidth;
     canvasElement.height = videoElement.clientHeight;
@@ -308,3 +327,18 @@
     setTimeout(kaiseki, 1000 / frameRate, videoElement);
   }
 </script>
+
+<!--
+TODO 使う人には混乱するから、とりあえず実装しない
+
+destroy()
+シグナリングサーバとの接続、および、接続済みのmediaConnection, dataConnectionを切断します。
+disconnect()
+シグナリングサーバとの接続を切断します。なお、接続済みのmediaConnection, dataConnectionは継続されます。
+close(forceClose)
+接続先 Peer との MediaConnection の接続を切断します。
+
+
+new Peer() により、SkyWay のシグナリングサーバと接続します。
+
+-->
