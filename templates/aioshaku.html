@@ -233,9 +233,13 @@
   var oshakuMode = OSHAKU_MODE;
   var frameRate = FRAME_RATE;
   var lastDegree = -100;
+  var port = null;
 
   function chkOshaku(value) {
     oshakuMode = value;
+    if (value && !port) {
+      selectSerial();
+    }
   }
 
   function chgFrameRate(value) {
@@ -272,30 +276,12 @@
         if (degree > 180)
           degree = Math.abs(degree - 360)
         console.log("radian", radian, "degree", degree)
-/*
         if (Math.abs(degree - lastDegree) > 2) {
           // サーバへ送りたいデータ
-          const data = {angle: degree};
-          // FetchAPIのオプション準備
-          const param  = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json; charset=utf-8"
-            },
-            // リクエストボディ
-            body: JSON.stringify(data)
-          };
-          // paramを付ける以外はGETと同じ
-          fetch("/api/angle", param)
-            .then((res)=>{
-              return( res.json() );
-            })
-            .then((json)=>{
-              //console.log('json', json)
-            });
+          const text = degree + '\r';
+          writeSerial(text)
           lastDegree = degree;
         }
-*/
       }
     }
     //canvasCtx.restore();
@@ -326,6 +312,31 @@
     // フレームレート後に再度解析
     setTimeout(kaiseki, 1000 / frameRate, videoElement);
   }
+
+  // Web Serial
+  // 接続
+  async function selectSerial() {
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      console.log("接続");
+    } catch (e) {
+      console.log("Error:", e);
+      port = null;
+    }
+  }
+
+  // シリアル送信
+  async function writeSerial(text) {
+    if (port) {
+      const encoder = new TextEncoder();
+      const writer = port.writable.getWriter();
+      await writer.write(encoder.encode(text));
+      console.log("テキスト書き込み: " + text);
+      writer.releaseLock();
+    }
+  }
+
 </script>
 
 <!--
