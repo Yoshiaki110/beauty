@@ -56,7 +56,7 @@
     </div>
 
     <div class="row">
-      <div class="col-4">
+      <div class="col-2">
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="oshaku" onchange="chkOshaku(this.checked)">
           <label class="form-check-label" for="oshaku">お酌をうける</label>
@@ -77,6 +77,10 @@
         </select>
       </div>
       <div class="col-2">
+        サーボ調整値
+      </div>
+      <div class="col-2">
+        <input type="number" id="diff" value="0" size="3" min="0" max="120"></input>
       </div>
       <div class="col-2">
         <button id="disconnect" onclick="window.location.reload();">切断</button>
@@ -252,36 +256,41 @@
     //canvasCtx.save();
     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
     canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-    if (oshakuMode && results.multiHandLandmarks && results.multiHandedness) {
-      for (let index = 0; index < results.multiHandLandmarks.length; index++) {
-        const landmarks = results.multiHandLandmarks[index];
-        // スケルトン表示
-        drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
-        drawLandmarks(canvasCtx, landmarks, { color: 'green', fillColor: 'white'});
-        // 角度を表示
-        canvasCtx.strokeStyle = 'red';
-        canvasCtx.lineWidth = 10;
-        canvasCtx.beginPath();
-        canvasCtx.moveTo(landmarks[4]['x'] * canvasElement.width, landmarks[4]['y'] * canvasElement.height);     // 親指：指先
-        canvasCtx.lineTo(landmarks[20]['x'] * canvasElement.width, landmarks[20]['y'] * canvasElement.height);   // 小指：指先
-        canvasCtx.closePath();
-        canvasCtx.stroke();
+    if (oshakuMode) {
+      var degree = 0;
+      if (results.multiHandLandmarks && results.multiHandedness) {
+        for (let index = 0; index < results.multiHandLandmarks.length; index++) {
+          const landmarks = results.multiHandLandmarks[index];
+          // スケルトン表示
+          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
+          drawLandmarks(canvasCtx, landmarks, { color: 'green', fillColor: 'white'});
+          // 角度を表示
+          canvasCtx.strokeStyle = 'red';
+          canvasCtx.lineWidth = 10;
+          canvasCtx.beginPath();
+          canvasCtx.moveTo(landmarks[4]['x'] * canvasElement.width, landmarks[4]['y'] * canvasElement.height);     // 親指：指先
+          canvasCtx.lineTo(landmarks[20]['x'] * canvasElement.width, landmarks[20]['y'] * canvasElement.height);   // 小指：指先
+          canvasCtx.closePath();
+          canvasCtx.stroke();
 
-        var radian = Math.atan2(landmarks[4]['y'] - landmarks[20]['y'], landmarks[4]['x'] - landmarks[20]['x'])
-        var degree = Math.floor(radian * 180 / Math.PI)
-        // 90度回転(0-180)
-        degree += 90
-        if (degree < 0)
-          degree = Math.abs(degree)
-        if (degree > 180)
-          degree = Math.abs(degree - 360)
-        console.log("radian", radian, "degree", degree)
-        if (Math.abs(degree - lastDegree) > 2) {
-          // サーバへ送りたいデータ
-          const text = degree + '\r';
-          writeSerial(text)
-          lastDegree = degree;
+          var radian = Math.atan2(landmarks[4]['y'] - landmarks[20]['y'], landmarks[4]['x'] - landmarks[20]['x'])
+          degree = Math.floor(radian * 180 / Math.PI);
+          // 90度回転(0-180)
+          degree += 90;
+          if (degree < 0)
+            degree = Math.abs(degree);
+          if (degree > 180)
+            degree = Math.abs(degree - 360);
+          console.log("radian", radian, "degree", degree);
+          break;
         }
+      }
+      if (Math.abs(degree - lastDegree) > 2) {
+        const diff = Number(document.getElementById('diff').value);
+        // サーバへ送りたいデータ
+        const text = (degree + diff) + '\r';
+        writeSerial(text);
+        lastDegree = degree;
       }
     }
     //canvasCtx.restore();
