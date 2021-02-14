@@ -56,16 +56,16 @@
     </div>
 
     <div class="row">
-      <div class="col-2">
+      <div class="col-4">
         <div class="form-check">
           <input class="form-check-input" type="checkbox" id="oshaku" onchange="chkOshaku(this.checked)">
           <label class="form-check-label" for="oshaku">お酌をうける</label>
         </div>
       </div>
-      <div class="col-2">
+      <div class="col-3">
         フレームレート
       </div>
-      <div class="col-2" class="form-group">
+      <div class="col-3" class="form-group">
         <select id="custom-select-1b" class="custom-select custom-select-sm"  onchange="chgFrameRate(this.value)">
           <option value="1">１フレーム毎秒</option>
           <option value="2">２フレーム毎秒</option>
@@ -75,12 +75,6 @@
           <option value="15">１５フレーム毎秒</option>
           <option value="20">２０フレーム毎秒</option>
         </select>
-      </div>
-      <div class="col-2">
-        サーボ調整値
-      </div>
-      <div class="col-2">
-        <input type="number" id="diff" value="0" size="3" min="0" max="120"></input>
       </div>
       <div class="col-2">
         <button id="disconnect" onclick="window.location.reload();">切断</button>
@@ -286,9 +280,8 @@
         }
       }
       if (Math.abs(degree - lastDegree) > 2) {
-        const diff = Number(document.getElementById('diff').value);
         // サーバへ送りたいデータ
-        const text = (degree + diff) + '\r';
+        const text = degree + '\r';
         writeSerial(text);
         lastDegree = degree;
       }
