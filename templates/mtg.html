@@ -7,12 +7,25 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
   <title>遠隔お酌 ブラウザ版</title>
   <!--link rel="stylesheet" href="./style.css"-->
+  <style type="text/css">
+    .output_canvas2{
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    .wrapper{
+      position: relative;
+    }
+  </style>
 </head>
 
 <body>
   <div class="container-fluid">
     <div class="row">
       <div class="col-12">
+        あなたの名前
+        <input type="text" placeholder="あなたの名前" id="your-name" value="">
         ミーティング番号
         <input type="number" placeholder="ミーティング番号" id="js-room-id" value="">
         <button id="js-join-trigger">ミーティングに入る</button>
@@ -21,10 +34,16 @@
     </div>
 
     <div class="row">
-      <div class="col-4">
+      <div class="col-3">
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" id="oshaku" onchange="chkOshaku(this.checked)">
-          <label class="form-check-label" for="oshaku">お酌をうける</label>
+          <input class="form-check-input" type="checkbox" id="snd-oshaku" onchange="sndOshaku(this.checked)">
+          <label class="form-check-label" for="snd-oshaku">お酌をする</label>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="rcv-oshaku" onchange="rcvOshaku(this.checked)">
+          <label class="form-check-label" for="rcv-oshaku">お酌をうける</label>
         </div>
       </div>
       <div class="col-3">
@@ -34,7 +53,7 @@
         <select id="custom-select-1b" class="custom-select custom-select-sm"  onchange="chgFrameRate(this.value)">
           <option value="1">１フレーム毎秒</option>
           <option value="2">２フレーム毎秒</option>
-          <option value="5">５フレーム毎秒</option>
+          <option value="5" selected>５フレーム毎秒</option>
           <option value="8">８フレーム毎秒</option>
           <option value="10">１０フレーム毎秒</option>
           <option value="15">１５フレーム毎秒</option>
@@ -47,11 +66,14 @@
 
 
     <div class="row">
-      <div class="col-2">
-        <video id="js-local-video" autoplay muted="true" class="img-fluid"></video>
+      <div class="col-6">
+        <div class="wrapper">
+          <video id="js-local-video" autoplay muted="true" class="their_video img-fluid"></video>
+          <canvas class="output_canvas2 img-fluid"></canvas>
+        </div>
       </div>
-      <div class="col-10">
-        <canvas class="output_canvas" class="img-fluid" class="img-fluid"></canvas>
+      <div class="col-6">
+        <canvas class="output_canvas img-fluid"></canvas>
       </div>
     </div>
     <div class="row">
@@ -75,6 +97,7 @@
 
   <script type="text/javascript">
 
+    const yourName = document.getElementById('your-name');
     const localVideo = document.getElementById('js-local-video');
     const videosContainer = document.getElementById('js-videos-container');
     const roomId = document.getElementById('js-room-id');
@@ -82,8 +105,20 @@
     const leaveTrigger = document.getElementById('js-leave-trigger');
     const Peer = window.Peer;
     var currentPeerId = null;
+    var dataConnection = null;
     var remoteVideoWidth = 0;        // 最初ビデオとの大きさを合わせるため
     var remoteVideoHeight = 0;
+    var peer = null;
+
+    // utf8からbase64に変換する
+    function utf8_to_b64(str) {
+      return window.btoa( unescape(encodeURIComponent(str)));
+    }
+    
+    // base64からutf8に変換する
+    function b64_to_utf8(str) {
+      return decodeURIComponent( escape(window.atob(str)));
+    }
 
     (async function main() {
 
@@ -94,17 +129,12 @@
       });
       localVideo.srcObject = localStream;
 
-      const peer = new Peer({
-        key: '93d09296-57d9-4199-911e-cba05486d8f8',
-        debug: 3,
-      });
-
-      peer.on('open', (id) => {
-        console.log('my peer id', id);
-      });
-
       // 入室ボタン
       joinTrigger.addEventListener('click', () => {
+        if (yourName.value === '') {
+          alert('あなたの名前を指定してください');
+          return;
+        }
         if (roomId.value === '') {
           alert('ミーティング番号を指定してください');
           return;
@@ -113,129 +143,191 @@
         joinTrigger.disabled = true;
         leaveTrigger.disabled = false;
 
-        const room = peer.joinRoom(roomId.value, {
-//          mode: 'sfu',
-          mode: 'mcu',
-          stream: localStream,
+        const id = utf8_to_b64(yourName.value).toString();
+        const peer = new Peer(id, {
+          key: '93d09296-57d9-4199-911e-cba05486d8f8',
+          debug: 3,
         });
 
-        room.on('open', () => {
-          console.log(`===You joined===\n`);
-        });
-
-        room.on('peerJoin', peerId => {
-          console.log(`===${peerId} joined===\n`);
-        });
-
-        // ビデオ通話イベント
-        room.on('stream', async stream => {
-          // 新しいビデオ画面表示
-          const remoteVideo = document.createElement('video');
-          remoteVideo.srcObject = stream;
-          if (remoteVideoWidth == 0) {
-            remoteVideo.width = localVideo.clientWidth;
-            remoteVideo.height = localVideo.clientHeight;
-          } else {
-            remoteVideo.width = remoteVideoWidth;
-            remoteVideo.height = remoteVideoHeight;
-          }
-          remoteVideo.playsInline = true;
-          remoteVideo.setAttribute('data-peer-id', stream.peerId);
-          const radio = document.createElement('input');
-          radio.type = 'radio';
-          radio.class = 'form-check-input';
-          radio.name = 'radio';
-          radio.value = stream.peerId;
-          radio.addEventListener("change", function () {
-            var id = document.querySelector("input:checked[name=radio]").value;
-            console.log('click:' + id);
-            currentPeerId = id;
+        peer.on('open', (id) => {
+          console.log('my peer id', id);
+          const room = peer.joinRoom(roomId.value, {
+//            mode: 'sfu',
+            mode: 'mcu',
+            stream: localStream,
           });
-          const div = document.createElement('div');
-//          const div = document.createElement('pre');
-          div.setAttribute('div-peer-id', stream.peerId);
-          div.appendChild(radio);
-          div.appendChild(remoteVideo);
-          videosContainer.append(div);
 
-          await remoteVideo.play().catch(console.error);
-
-          if (!timeout) {
-            remoteVideoWidth = remoteVideo.width;
-            remoteVideoHeight = remoteVideo.height;
-            radio.checked = true;
-            // 受信した画像を解析する
-            currentPeerId = stream.peerId;
-            timeout = setTimeout(kaiseki, 1000);
+          function leave() {
+            room.close();
+            peer.destroy();
+            joinTrigger.disabled = false;
+            leaveTrigger.disabled = true;
+            document.getElementById("snd-oshaku").checked = false;
+            document.getElementById("rcv-oshaku").checked = false;
+            sndOshakuMode = false;
+            rcvOshakuMode = false;
           }
-        });
 
-        // 一部の人が退室イベント
-        room.on('peerLeave', peerId => {
-          console.log(`===${peerId} left===\n`);
-          const remoteVideo = videosContainer.querySelector(`[data-peer-id="${peerId}"]`);
-          remoteVideo.srcObject.getTracks().forEach(track => {
-            track.stop();
+          room.on('open', () => {
+            console.log(`===You joined===\n`);
           });
-          remoteVideo.srcObject = null;
-          remoteVideo.remove();
-          const div = videosContainer.querySelector(`[div-peer-id="${peerId}"]`);
-          div.remove();
 
-          const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
-          if (remoteVideos.length == 0) {
+          room.on('peerJoin', peerId => {
+            console.log(`===${peerId} joined===\n`);
+          });
+
+          // ビデオ通話イベント
+          room.on('stream', async stream => {
+            // 新しいビデオ画面表示
+            const remoteVideo = document.createElement('video');
+            remoteVideo.srcObject = stream;
+            if (remoteVideoWidth == 0) {
+              remoteVideo.width = localVideo.clientWidth * 0.3;
+              remoteVideo.height = localVideo.clientHeight * 0.3;
+            } else {
+              remoteVideo.width = remoteVideoWidth;
+              remoteVideo.height = remoteVideoHeight;
+            }
+            remoteVideo.playsInline = true;
+            remoteVideo.setAttribute('data-peer-id', stream.peerId);
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.class = 'form-check-input';
+            radio.name = 'radio';
+            radio.value = stream.peerId;
+            radio.addEventListener("change", function () {
+              var id = document.querySelector("input:checked[name=radio]").value;
+              console.log('click:' + id);
+              currentPeerId = id;
+              dataConnection.close(true);
+              dataConnection = peer.connect(currentPeerId);
+            });
+            var name = b64_to_utf8(stream.peerId);
+            var text = document.createTextNode('【' + name + '】');
+            const div = document.createElement('div');
+  //          const div = document.createElement('pre');
+            div.setAttribute('div-peer-id', stream.peerId);
+            div.appendChild(radio);
+            div.appendChild(text);
+            div.appendChild(remoteVideo);
+            videosContainer.append(div);
+
+            await remoteVideo.play().catch(console.error);
+
+            if (!timeout) {
+              remoteVideoWidth = remoteVideo.width;
+              remoteVideoHeight = remoteVideo.height;
+              radio.checked = true;
+              // 受信した画像を解析する
+              currentPeerId = stream.peerId;
+              dataConnection = peer.connect(currentPeerId);
+              timeout = setTimeout(kaiseki, 1000);
+            }
+          });
+
+          // 一部の人が退室イベント
+          room.on('peerLeave', peerId => {
+            console.log(`===${peerId} left===\n`);
+            const remoteVideo = videosContainer.querySelector(`[data-peer-id="${peerId}"]`);
+            remoteVideo.srcObject.getTracks().forEach(track => {
+              track.stop();
+            });
+            remoteVideo.srcObject = null;
+            remoteVideo.remove();
+            const div = videosContainer.querySelector(`[div-peer-id="${peerId}"]`);
+            div.remove();
+
+            const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
+            if (remoteVideos.length == 0) {
+              clearTimeout(timeout);
+              timeout = null;
+              hands = null;
+              canvasElement.width = 0;
+              canvasElement.height = 0;
+              currentPeerId = null;
+              dataConnection.close(true);
+            }
+          });
+
+          // 全クローズイベント
+          room.once('close', () => {
+            console.log('===You left ===\n');
             clearTimeout(timeout);
             timeout = null;
             hands = null;
             canvasElement.width = 0;
             canvasElement.height = 0;
             currentPeerId = null;
+            if (dataConnection) {
+              dataConnection.close(true);
+            }
+            const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
+            Array.from(remoteVideos)
+              .forEach(remoteVideo => {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+                remoteVideo.remove();
+              });
+            const divs = videosContainer.querySelectorAll('[div-peer-id]');
+            Array.from(divs)
+              .forEach(div => {
+                div.remove();
+              });
+          });
+
+          // 退出ボタン
+          leaveTrigger.addEventListener('click', () => {
+            leave();
+          }, { once: true });
+
+        });
+
+        peer.on("connection", (dataConnect) => {
+          // データを送信する
+          dataConnect.on("open", () => {
+            console.log('*** data open ***');
+            const data = {
+              name: "from " + yourName.value,
+              msg: "to " + b64_to_utf8(currentPeerId),
+              degree: 123
+            };
+            dataConnect.send(data);
+          });
+
+          // データを受信する
+          dataConnect.on("data", ({ name, msg, degree }) => {
+            console.log(`*** data rcv ***${name}: ${msg}: ${degree}: ${rcvOshakuMode}`);
+            if (rcvOshakuMode) {
+              const text = degree + '\r';
+              writeSerial(text);
+            }
+          });
+          dataConnection.on("close", () => {
+            console.log('*** data close ***');
+          });
+          dataConnection.on("error", () => {
+            console.log('*** data error ***');
+          });
+        });
+
+        peer.on("error", (error) => {
+          console.log(`===error===\n${error.type}: ${error.message}`);
+          if (error.type === 'unavailable-id') {
+            alert(`あなたお名前は利用できません、別の名前を使用してください。\n${error.type}: ${error.message}`);
+          } else {
+            alert(`Webミーティングでエラーが発生しました。\n${error.type}: ${error.message}`);
           }
+          leave();
         });
-
-        // 全クローズイベント
-        room.once('close', () => {
-          console.log('===You left ===\n');
-          clearTimeout(timeout);
-          timeout = null;
-          hands = null;
-          canvasElement.width = 0;
-          canvasElement.height = 0;
-          currentPeerId = null;
-          const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
-          Array.from(remoteVideos)
-            .forEach(remoteVideo => {
-              remoteVideo.srcObject.getTracks().forEach(track => track.stop());
-              remoteVideo.srcObject = null;
-              remoteVideo.remove();
-            });
-          const divs = videosContainer.querySelectorAll('[div-peer-id]');
-          Array.from(divs)
-            .forEach(div => {
-              div.remove();
-            });
-        });
-
-        // 退出ボタン
-        leaveTrigger.addEventListener('click', () => {
-          room.close();
-          joinTrigger.disabled = false;
-          leaveTrigger.disabled = true;
-        }, { once: true });
       });
-
-      peer.on("error", (error) => {
-        console.log(`===error===\n${error.type}: ${error.message}`);
-        alert(`Webミーティングでエラーが発生しました。\n${error.type}: ${error.message}`);
-      });
-
     })();
 
 
     // 画像解析関連
     const canvasElement = document.getElementsByClassName('output_canvas')[0];
-    const controlsElement = document.getElementsByClassName('control-panel')[0];
+    const canvasElement2 = document.getElementsByClassName('output_canvas2')[0];
     const canvasCtx = canvasElement.getContext('2d');
+    const canvasCtx2 = canvasElement2.getContext('2d');
     const options = {
       maxNumHands: 1,
       minDetectionConfidence: 0.5,
@@ -243,13 +335,17 @@
     };
     var hands = null;
     var timeout = null;
-    var oshakuMode = false;
-    var frameRate = 1;
+    var sndOshakuMode = false;
+    var rcvOshakuMode = false;
+    var frameRate = 5;
     var lastDegree = -100;
     var port = null;
 
-    function chkOshaku(value) {
-      oshakuMode = value;
+    function sndOshaku(value) {
+      sndOshakuMode = value;
+    }
+    function rcvOshaku(value) {
+      rcvOshakuMode = value;
       if (value && !port) {
         selectSerial();
       }
@@ -257,28 +353,31 @@
 
     function chgFrameRate(value) {
       frameRate = Number(value);
-  //    hands = null;
+      const data = {
+        name: "from " + yourName.value,
+        msg: "to " + b64_to_utf8(currentPeerId),
+        degree: 123
+      };
+      dataConnection.send(data);
     }
 
     // 画像解析コールバック
     function onResults(results) {
       var degree = 0;
-      //canvasCtx.save();
-  //    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  //    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+      //canvasCtx2.save();
       if (results.multiHandLandmarks && results.multiHandedness) {
         for (let index = 0; index < results.multiHandLandmarks.length; index++) {
           const landmarks = results.multiHandLandmarks[index];
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
-          drawLandmarks(canvasCtx, landmarks, { color: 'green', fillColor: 'white'});
+          drawConnectors(canvasCtx2, landmarks, HAND_CONNECTIONS, {color: 'blue'});
+          drawLandmarks(canvasCtx2, landmarks, { color: 'green', fillColor: 'white'});
 
-          canvasCtx.strokeStyle = 'red';
-          canvasCtx.lineWidth = 10;
-          canvasCtx.beginPath();
-          canvasCtx.moveTo(landmarks[4]['x'] * canvasElement.width, landmarks[4]['y'] * canvasElement.height);     // 親指：指先
-          canvasCtx.lineTo(landmarks[20]['x'] * canvasElement.width, landmarks[20]['y'] * canvasElement.height);   // 小指：指先
-          canvasCtx.closePath();
-          canvasCtx.stroke();
+          canvasCtx2.strokeStyle = 'red';
+          canvasCtx2.lineWidth = 10;
+          canvasCtx2.beginPath();
+          canvasCtx2.moveTo(landmarks[4]['x'] * canvasElement2.width, landmarks[4]['y'] * canvasElement2.height);     // 親指：指先
+          canvasCtx2.lineTo(landmarks[20]['x'] * canvasElement2.width, landmarks[20]['y'] * canvasElement2.height);   // 小指：指先
+          canvasCtx2.closePath();
+          canvasCtx2.stroke();
 
           var radian = Math.atan2(landmarks[4]['y'] - landmarks[20]['y'], landmarks[4]['x'] - landmarks[20]['x'])
           degree = Math.floor(radian * 180 / Math.PI);
@@ -292,27 +391,33 @@
           break;
         }
       }
-      //canvasCtx.restore();
+      //canvasCtx2.restore();
       if (Math.abs(degree - lastDegree) > 2) {
         // サーバへ送りたいデータ
-        const text = degree + '\r';
-        writeSerial(text);
+        const data = {
+          name: "from " + yourName.value,
+          msg: "to " + b64_to_utf8(currentPeerId),
+          degree: degree
+        };
+        dataConnection.send(data);
         lastDegree = degree;
       }
     }
 
     // 画像解析（定期的に呼ぶ）
     function kaiseki() {
-//      console.log('videoElement', videoElement.clientWidth, videoElement.clientHeight);
-//      console.log('canvasElement', canvasElement.width, canvasElement.height)
-      const videoElement = videosContainer.querySelector(`[data-peer-id="${currentPeerId}"]`);
-
-      // 解析元の画像表示
-      canvasElement.width = localVideo.clientWidth * 5;
-      canvasElement.height = localVideo.clientHeight * 5;
+      // 自分の画像表示
+      canvasElement2.width = localVideo.clientWidth * 1;       // 5
+      canvasElement2.height = localVideo.clientHeight * 1;
+      canvasCtx2.clearRect(0, 0, canvasElement2.width, canvasElement2.height);
+      canvasCtx2.drawImage(localVideo, 0, 0, canvasElement2.width, canvasElement2.height);
+      // 相手の画像表示
+      const videoElement0ther = videosContainer.querySelector(`[data-peer-id="${currentPeerId}"]`)
+      canvasElement.width = localVideo.clientWidth * 1;
+      canvasElement.height = localVideo.clientHeight * 1;
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-      if (oshakuMode) {
+      canvasCtx.drawImage(videoElement0ther, 0, 0, canvasElement.width, canvasElement.height);
+      if (sndOshakuMode) {
         try {
           if (!hands) {
             hands = new Hands({locateFile: (file) => {
@@ -322,7 +427,8 @@
             hands.setOptions(options);
           }
           // 解析を依頼
-          hands.send({image: videoElement});
+//          hands.send({image: videoElement0ther});
+          hands.send({image: localVideo});
         } catch (e) {
           alert('画像解析でエラーが発生しました。\n' + e);
           hands = null;
@@ -331,7 +437,6 @@
       timeout = setTimeout(kaiseki, 1000 / frameRate);
     }
 
-    // Web Serial
     // 接続
     async function selectSerial() {
       try {
