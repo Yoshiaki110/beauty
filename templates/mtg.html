@@ -6,15 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
   <title>遠隔お酌 ブラウザ版</title>
-  <!--link rel="stylesheet" href="./style.css"-->
 </head>
 
 <body>
   <div class="container-fluid">
     <div class="row">
       <div class="col-12">
+        あなたの名前
+        <input type="text" placeholder="半角英数" id="your-name" value="">
         ミーティング番号
-        <input type="number" placeholder="ミーティング番号" id="js-room-id" value="">
+        <input type="number" placeholder="数値" id="js-room-id" value="1" min="1" max="999999">
         <button id="js-join-trigger">ミーティングに入る</button>
         <button id="js-leave-trigger" disabled>ミーティングを抜ける</button>
       </div>
@@ -75,6 +76,7 @@
 
   <script type="text/javascript">
 
+    const yourName = document.getElementById('your-name');
     const localVideo = document.getElementById('js-local-video');
     const videosContainer = document.getElementById('js-videos-container');
     const roomId = document.getElementById('js-room-id');
@@ -84,6 +86,7 @@
     var currentPeerId = null;
     var remoteVideoWidth = 0;        // 最初ビデオとの大きさを合わせるため
     var remoteVideoHeight = 0;
+    var peer = null;
 
     (async function main() {
 
@@ -94,17 +97,12 @@
       });
       localVideo.srcObject = localStream;
 
-      const peer = new Peer({
-        key: '93d09296-57d9-4199-911e-cba05486d8f8',
-        debug: 3,
-      });
-
-      peer.on('open', (id) => {
-        console.log('my peer id', id);
-      });
-
       // 入室ボタン
       joinTrigger.addEventListener('click', () => {
+        if (yourName.value === '') {
+          alert('あなたの名前を指定してください');
+          return;
+        }
         if (roomId.value === '') {
           alert('ミーティング番号を指定してください');
           return;
@@ -113,121 +111,144 @@
         joinTrigger.disabled = true;
         leaveTrigger.disabled = false;
 
-        const room = peer.joinRoom(roomId.value, {
-//          mode: 'sfu',
-          mode: 'mcu',
-          stream: localStream,
-        });
-
-        room.on('open', () => {
-          console.log(`===You joined===\n`);
-        });
-
-        room.on('peerJoin', peerId => {
-          console.log(`===${peerId} joined===\n`);
-        });
-
-        // ビデオ通話イベント
-        room.on('stream', async stream => {
-          // 新しいビデオ画面表示
-          const remoteVideo = document.createElement('video');
-          remoteVideo.srcObject = stream;
-          if (remoteVideoWidth == 0) {
-            remoteVideo.width = localVideo.clientWidth;
-            remoteVideo.height = localVideo.clientHeight;
-          } else {
-            remoteVideo.width = remoteVideoWidth;
-            remoteVideo.height = remoteVideoHeight;
-          }
-          remoteVideo.playsInline = true;
-          remoteVideo.setAttribute('data-peer-id', stream.peerId);
-          const radio = document.createElement('input');
-          radio.type = 'radio';
-          radio.class = 'form-check-input';
-          radio.name = 'radio';
-          radio.value = stream.peerId;
-          radio.addEventListener("change", function () {
-            var id = document.querySelector("input:checked[name=radio]").value;
-            console.log('click:' + id);
-            currentPeerId = id;
+        try {
+          peer = new Peer(yourName.value, {
+            key: '93d09296-57d9-4199-911e-cba05486d8f8',
+            debug: 3,
           });
-          const div = document.createElement('div');
-//          const div = document.createElement('pre');
-          div.setAttribute('div-peer-id', stream.peerId);
-          div.appendChild(radio);
-          div.appendChild(remoteVideo);
-          videosContainer.append(div);
+        } catch (e) {
+          alert('名前は半角英数を指定してください\n' + e);
+          return;
+        }
 
-          await remoteVideo.play().catch(console.error);
-
-          if (!timeout) {
-            remoteVideoWidth = remoteVideo.width;
-            remoteVideoHeight = remoteVideo.height;
-            radio.checked = true;
-            // 受信した画像を解析する
-            currentPeerId = stream.peerId;
-            timeout = setTimeout(kaiseki, 1000);
-          }
-        });
-
-        // 一部の人が退室イベント
-        room.on('peerLeave', peerId => {
-          console.log(`===${peerId} left===\n`);
-          const remoteVideo = videosContainer.querySelector(`[data-peer-id="${peerId}"]`);
-          remoteVideo.srcObject.getTracks().forEach(track => {
-            track.stop();
+        peer.on('open', (id) => {
+          const room = peer.joinRoom(roomId.value, {
+//            mode: 'sfu',
+            mode: 'mcu',
+            stream: localStream,
           });
-          remoteVideo.srcObject = null;
-          remoteVideo.remove();
-          const div = videosContainer.querySelector(`[div-peer-id="${peerId}"]`);
-          div.remove();
 
-          const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
-          if (remoteVideos.length == 0) {
+          room.on('open', () => {
+            console.log(`===You joined===\n`);
+          });
+
+          room.on('peerJoin', peerId => {
+            console.log(`===${peerId} joined===\n`);
+          });
+
+          // ビデオ通話イベント
+          room.on('stream', async stream => {
+            // 新しいビデオ画面表示
+            const remoteVideo = document.createElement('video');
+            remoteVideo.srcObject = stream;
+            if (remoteVideoWidth == 0) {
+              remoteVideo.width = localVideo.clientWidth * 0.3;
+              remoteVideo.height = localVideo.clientHeight * 0.3;
+            } else {
+              remoteVideo.width = remoteVideoWidth;
+              remoteVideo.height = remoteVideoHeight;
+            }
+            remoteVideo.playsInline = true;
+            remoteVideo.setAttribute('data-peer-id', stream.peerId);
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.class = 'form-check-input';
+            radio.name = 'radio';
+            radio.value = stream.peerId;
+            radio.addEventListener("change", function () {
+              var id = document.querySelector("input:checked[name=radio]").value;
+              console.log('click:' + id);
+              currentPeerId = id;
+            });
+            var text = document.createTextNode('【' + stream.peerId + '】');
+            const div = document.createElement('div');
+            div.setAttribute('div-peer-id', stream.peerId);
+            div.appendChild(radio);
+            div.appendChild(text);
+            div.appendChild(remoteVideo);
+            videosContainer.append(div);
+
+            await remoteVideo.play().catch(console.error);
+
+            if (!timeout) {
+              remoteVideoWidth = remoteVideo.width;
+              remoteVideoHeight = remoteVideo.height;
+              radio.checked = true;
+              // 受信した画像を解析する
+              currentPeerId = stream.peerId;
+              timeout = setTimeout(kaiseki, 1000);
+            }
+          });
+
+          // 一部の人が退室イベント
+          room.on('peerLeave', peerId => {
+            console.log(`===${peerId} left===\n`);
+            const remoteVideo = videosContainer.querySelector(`[data-peer-id="${peerId}"]`);
+            remoteVideo.srcObject.getTracks().forEach(track => {
+              track.stop();
+            });
+            remoteVideo.srcObject = null;
+            remoteVideo.remove();
+            const div = videosContainer.querySelector(`[div-peer-id="${peerId}"]`);
+            div.remove();
+
+            const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
+            if (remoteVideos.length == 0) {
+              clearTimeout(timeout);
+              timeout = null;
+              hands = null;
+              canvasElement.width = 0;
+              canvasElement.height = 0;
+              currentPeerId = null;
+            }
+          });
+
+          // 全クローズイベント
+          room.once('close', () => {
+            console.log('===You left ===\n');
             clearTimeout(timeout);
             timeout = null;
             hands = null;
             canvasElement.width = 0;
             canvasElement.height = 0;
             currentPeerId = null;
-          }
-        });
+            const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
+            Array.from(remoteVideos)
+              .forEach(remoteVideo => {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+                remoteVideo.remove();
+              });
+            const divs = videosContainer.querySelectorAll('[div-peer-id]');
+            Array.from(divs)
+              .forEach(div => {
+                div.remove();
+              });
+          });
 
-        // 全クローズイベント
-        room.once('close', () => {
-          console.log('===You left ===\n');
-          clearTimeout(timeout);
-          timeout = null;
-          hands = null;
-          canvasElement.width = 0;
-          canvasElement.height = 0;
-          currentPeerId = null;
-          const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
-          Array.from(remoteVideos)
-            .forEach(remoteVideo => {
-              remoteVideo.srcObject.getTracks().forEach(track => track.stop());
-              remoteVideo.srcObject = null;
-              remoteVideo.remove();
-            });
-          const divs = videosContainer.querySelectorAll('[div-peer-id]');
-          Array.from(divs)
-            .forEach(div => {
-              div.remove();
-            });
+          // 退出ボタン
+          leaveTrigger.addEventListener('click', () => {
+            room.close();
+            peer.destroy();
+            joinTrigger.disabled = false;
+            leaveTrigger.disabled = true;
+            document.getElementById("oshaku").checked = false;
+            oshakuMode = false;
+          }, { once: true });
         });
-
-        // 退出ボタン
-        leaveTrigger.addEventListener('click', () => {
-          room.close();
+        peer.on("error", (error) => {
+          console.log(`===error===\n${error.type}: ${error.message}`);
+          alert(`Webミーティングでエラーが発生しました。\n${error.type}: ${error.message}`);
+          peer.destroy();
           joinTrigger.disabled = false;
           leaveTrigger.disabled = true;
-        }, { once: true });
+          document.getElementById("oshaku").checked = false;
+          oshakuMode = false;
+        });
+
       });
 
-      peer.on("error", (error) => {
-        console.log(`===error===\n${error.type}: ${error.message}`);
-        alert(`Webミーティングでエラーが発生しました。\n${error.type}: ${error.message}`);
-      });
+
 
     })();
 
