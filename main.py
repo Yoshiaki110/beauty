@@ -74,6 +74,14 @@ def face():
 def answer():
     return jsonify({})
 
+@app.route("/sendgrid/webhook", methods=['POST'])
+def sendgrid_webhook():
+    json_list = request.get_json()
+    for data in json_list:
+        dumped = dumps(data)
+        print(dumped)
+    return ""
+
 
 # Flaskを使用してサーバーを起動
 if __name__ == "__main__":
