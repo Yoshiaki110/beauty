@@ -1,6 +1,7 @@
 from flask import Flask, request, abort, render_template, send_file, Response, jsonify, make_response
 from flask_cors import CORS
 from flask_socketio import SocketIO
+import ftplib
 import threading
 import base64
 
@@ -81,6 +82,36 @@ def sendgrid_webhook():
         dumped = dumps(data)
         print(dumped)
     return ""
+
+
+# ブラウザからの画像のアップロード
+@app.route('/ftp/put', methods=['POST'])
+def ftp_put():
+    server = request.form['server']
+    if '' == server:
+        return render_template("ftpresult.html", result='サーバ未指定')
+    userid = request.form['userid']
+    password = request.form['password']
+    print(userid)
+    if 'uploadFile' not in request.files:
+        return render_template("ftpresult.html", result='アップロード失敗（ファイル未指定）')
+    file = request.files['uploadFile']
+    fileName = file.filename
+    if '' == fileName:
+        return render_template("ftpresult.html", result='アップロード失敗（ファイル未指定）')
+    tmpFileName = os.path.join(app.config['UPLOAD_FOLDER'], str(uuid.uuid4()) + '.jpeg')
+    file.save(tmpFileName)
+
+    ftp = ftplib.FTP(server)
+    ftp.set_pasv('true')
+    try:
+        ftp.login(userid, password)
+    except:
+        return render_template("ftpresult.html", result='ログイン失敗（ログイン名、パスワードの誤り）')
+    with open(tmpFileName, "rb") as f:
+        ftp.storbinary('STOR /' + fileName, f)
+    
+    return render_template("ftpresult.html", result='アップロード成功')
 
 
 # Flaskを使用してサーバーを起動

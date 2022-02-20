@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>FTP UPLOAD</title>
+  </head>
+  <body>
+    <h1>FTP UPLOAD</h1>
+    <form action="/ftp/put" method="post" enctype="multipart/form-data">
+      FTP SERVER <input type="text" name="server"/>
+      <br/>
+      FTP USRR NAME <input type="text" name="userid"/>
+      <br/>
+      FTP PASSWORD <input type="password" name="password"/>
+      <br/>
+      UPDATE FILE <input type="file" name="uploadFile" accept=".jpeg,.jpg,.png"/>
+      <br/>
+      <input type="submit" value="アップロード"/>
+    </form>
+
+  </body>
+</html>
