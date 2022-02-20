@@ -89,29 +89,29 @@ def sendgrid_webhook():
 def ftp_put():
     server = request.form['server']
     if '' == server:
-        return render_template("ftpresult.html", result='サーバ未指定')
+        return render_template("ftpresult.html", result='サーバ未指定', file_list=[])
     userid = request.form['userid']
     password = request.form['password']
     print(userid)
-    if 'uploadFile' not in request.files:
-        return render_template("ftpresult.html", result='アップロード失敗（ファイル未指定）')
-    file = request.files['uploadFile']
-    fileName = file.filename
-    if '' == fileName:
-        return render_template("ftpresult.html", result='アップロード失敗（ファイル未指定）')
-    tmpFileName = os.path.join(app.config['UPLOAD_FOLDER'], str(uuid.uuid4()) + '.jpeg')
-    file.save(tmpFileName)
-
     ftp = ftplib.FTP(server)
-    ftp.set_pasv('true')
     try:
         ftp.login(userid, password)
     except:
-        return render_template("ftpresult.html", result='ログイン失敗（ログイン名、パスワードの誤り）')
-    with open(tmpFileName, "rb") as f:
-        ftp.storbinary('STOR /' + fileName, f)
+        return render_template("ftpresult.html", result='ログイン失敗（ログイン名、パスワードの誤り）', file_list=[])
+    msg = 'リモートファイル一覧'
+    if 'uploadFile' in request.files:
+        file = request.files['uploadFile']
+        fileName = file.filename
+        if '' != fileName:
+            tmpFileName = os.path.join(app.config['UPLOAD_FOLDER'], str(uuid.uuid4()) + '.jpeg')
+            file.save(tmpFileName)        
+            ftp.set_pasv('true')
+            with open(tmpFileName, "rb") as f:
+                ftp.storbinary('STOR /' + fileName, f)
+            msg = 'アップロード成功'
+    file_list = ftp.nlst(".")
     
-    return render_template("ftpresult.html", result='アップロード成功')
+    return render_template("ftpresult.html", result=msg, file_list=file_list)
 
 
 # Flaskを使用してサーバーを起動

@@ -6,7 +6,10 @@
   </head>
   <body>
     <h1>FTP結果</h1>
-    {{result}}
+    {{result}}<br/>
+    {% for i in file_list %}
+      <li>{{ i }}</li>
+    {% endfor %}
     <br />
     <button onclick="history.back()" class="btn btn-info btn-lg">戻る</button>
   </body>
