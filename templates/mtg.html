@@ -90,7 +90,15 @@
     var peer = null;
 
     (async function main() {
-
+      navigator.mediaDevices.enumerateDevices()
+      .then(function(devices) { // 成功時
+        devices.forEach(function(device) {
+          console.log(device);
+        });
+      })
+      .catch(function(err) { // エラー発生時
+        console.error('enumerateDevide ERROR:', err);
+      });
       const localStream = await navigator.mediaDevices.getUserMedia({
 //        video: { width: { min: 320, max: 320 }, height: { min: 240, max: 240 } },
         video: true,
