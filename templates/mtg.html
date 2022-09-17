@@ -71,10 +71,10 @@ chrome://settings/content/microphone
 
   <!--script type="text/javascript" src="https://cdn.webrtc.ecl.ntt.com/skyway-latest.js"></script-->
   <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.3.0.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.1/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils@0.1/control_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.1/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.1/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
@@ -121,11 +121,6 @@ chrome://settings/content/microphone
           return;
         }
 
-        joinTrigger.disabled = true;
-        leaveTrigger.disabled = false;
-        yourName.disabled = true;
-        roomId.disabled = true;
-
         try {
           peer = new Peer(yourName.value, {
             key: '93d09296-57d9-4199-911e-cba05486d8f8',
@@ -135,6 +130,11 @@ chrome://settings/content/microphone
           alert('名前は半角英数を指定してください\n' + e);
           return;
         }
+
+        joinTrigger.disabled = true;
+        leaveTrigger.disabled = false;
+        yourName.disabled = true;
+        roomId.disabled = true;
 
         peer.on('open', (id) => {
           const room = peer.joinRoom(roomId.value, {
@@ -278,6 +278,7 @@ chrome://settings/content/microphone
     const canvasCtx = canvasElement.getContext('2d');
     const options = {
       maxNumHands: 1,
+      modelComplexity: 1,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
     };
@@ -366,7 +367,7 @@ chrome://settings/content/microphone
           try {
             if (!hands) {
               hands = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.1/${file}`;
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
               }});
               hands.onResults(onResults);
               hands.setOptions(options);
