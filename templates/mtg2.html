@@ -32,23 +32,17 @@ chrome://settings/content/microphone
     <div class="row">
       <div class="col-4">
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" id="oshaku" onchange="chkOshaku(this.checked)">
-          <label class="form-check-label" for="oshaku">お酌をうける</label>
+          <input class="form-check-input" type="checkbox" id="oshakuSend" onchange="chkSendOshaku(this.checked)">
+          <label class="form-check-label" for="oshakuSend">お酌をする</label>
         </div>
       </div>
       <div class="col-4">
-        フレームレート
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="oshakuRecv" onchange="chkRecvOshaku(this.checked)">
+          <label class="form-check-label" for="oshakuRecv">お酌をうける</label>
+        </div>
       </div>
       <div class="col-4" class="form-group">
-        <select id="custom-select-1b" class="custom-select custom-select-sm"  onchange="chgFrameRate(this.value)">
-          <option value="1">１フレーム毎秒</option>
-          <option value="2">２フレーム毎秒</option>
-          <option value="5" selected>５フレーム毎秒</option>
-          <option value="8">８フレーム毎秒</option>
-          <option value="10">１０フレーム毎秒</option>
-          <option value="15">１５フレーム毎秒</option>
-          <option value="20">２０フレーム毎秒</option>
-        </select>
       </div>
     </div>
 
@@ -108,10 +102,12 @@ chrome://settings/content/microphone
     };
     var hands = null;
     var timeout = null;
-    var oshakuMode = false;
-    var frameRate = 1;
+    var oshakuSendMode = false;
+    var oshakuRecvMode = false;
+    var frameRate = 5;
     var lastDegree = -100;
     var port = null;
+    var room = null;
 
 
     function copyVideo() {
@@ -130,22 +126,22 @@ chrome://settings/content/microphone
       localCtx.clearRect(0, 0, w, h);
       localCtx.drawImage(localVideoElm, 0, 0, w, h);
       localCtx.restore();
-    if (oshakuMode) {
-      try {
-        if (!hands) {
-          hands = new Hands({locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-          }});
-          hands.onResults(onResults);
-          hands.setOptions(options);
+      if (oshakuSendMode) {
+        try {
+          if (!hands) {
+            hands = new Hands({locateFile: (file) => {
+              return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }});
+            hands.onResults(onResults);
+            hands.setOptions(options);
+          }
+          // 解析を依頼
+          hands.send({image: localCanvasElm});
+        } catch (e) {
+          alert('画像解析でエラーが発生しました。\n' + e);
+          hands = null;
         }
-        // 解析を依頼
-        hands.send({image: localCanvasElm});
-      } catch (e) {
-        alert('画像解析でエラーが発生しました。\n' + e);
-        hands = null;
       }
-    }
       setTimeout(copyVideo, 100);
     }
 
@@ -194,7 +190,7 @@ chrome://settings/content/microphone
         roomId.disabled = true;
 
         peer.on('open', (id) => {
-          const room = peer.joinRoom(roomId.value, {
+          room = peer.joinRoom(roomId.value, {
 //            mode: 'sfu',
             mode: 'mcu',
             stream: localStream,
@@ -254,6 +250,20 @@ chrome://settings/content/microphone
             }
           });
 
+          // 受信イベント
+          room.on('data', ({ data, src }) => {
+            console.log('受信しました ' + src + 'さん ' + data);
+            if (oshakuRecvMode) {
+              var degree = Number(data);
+              if (Math.abs(degree - lastDegree) > 2) {
+                // サーバへ送りたいデータ
+                const text = degree + '\r';
+                writeSerial(text);
+                lastDegree = degree;
+              }
+            }
+          });
+
           // 一部の人が退室イベント
           room.on('peerLeave', peerId => {
             console.log(`===${peerId} left===\n`);
@@ -271,6 +281,7 @@ chrome://settings/content/microphone
               clearTimeout(timeout);
               timeout = null;
               hands = null;
+              room = null;
               remoteCanvasElm.width = 0;
               remoteCanvasElm.height = 0;
               currentPeerId = null;
@@ -283,6 +294,7 @@ chrome://settings/content/microphone
             clearTimeout(timeout);
             timeout = null;
             hands = null;
+            room = null;
             remoteCanvasElm.width = 0;
             remoteCanvasElm.height = 0;
             currentPeerId = null;
@@ -308,8 +320,10 @@ chrome://settings/content/microphone
             leaveTrigger.disabled = true;
             yourName.disabled = false;
             roomId.disabled = false;
-            document.getElementById("oshaku").checked = false;
-            oshakuMode = false;
+            document.getElementById("oshakuSend").checked = false;
+            oshakuSendMode = false;
+            document.getElementById("oshakuRecv").checked = false;
+            oshakuRecvMode = false;
           }, { once: true });
         });
         peer.on("error", (error) => {
@@ -320,24 +334,26 @@ chrome://settings/content/microphone
           leaveTrigger.disabled = true;
           yourName.disabled = false;
           roomId.disabled = false;
-          document.getElementById("oshaku").checked = false;
-          oshakuMode = false;
+          document.getElementById("oshakuSend").checked = false;
+          oshakuSendMode = false;
+          document.getElementById("oshakuRecv").checked = false;
+          oshakuRecvMode = false;
         });
       });
     })();
 
 
-    function chkOshaku(value) {
-      oshakuMode = value;
-      if (value && !port) {
-        selectSerial();
-      }
+    function chkSendOshaku(value) {
+      oshakuSendMode = value;
       hands = null;
     }
 
-    function chgFrameRate(value) {
-      frameRate = Number(value);
-      hands = null;
+    function chkRecvOshaku(value) {
+      oshakuRecvMode = value;
+      if (value && !port) {
+        selectSerial();
+      }
+      //hands = null;
     }
 
     var drawing = false;
@@ -376,12 +392,17 @@ chrome://settings/content/microphone
         }
       }
       drawing = false;
+      if (room) {
+        room.send("" + degree);
+      }
+/*
       if (Math.abs(degree - lastDegree) > 2) {
         // サーバへ送りたいデータ
         const text = degree + '\r';
         writeSerial(text);
         lastDegree = degree;
       }
+*/
     }
 
     // リモートの画像表示（定期的に呼ぶ）
