@@ -53,6 +53,10 @@ def oshaku():
     #return render_template('aioshaku.html')
     return render_template('mtg.html')
 
+@app.route('/mtg')
+def mtg():
+    return render_template('mtg2.html')
+
 
 @app.route("/ehon", methods=['GET'])
 def ehon():
