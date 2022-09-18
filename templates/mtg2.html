@@ -52,17 +52,18 @@ chrome://settings/content/microphone
       </div>
     </div>
 
+    <video id="local-video" width="1px" class="img-fluid" autoplay muted playsinline></video>
     <div class="row">
       <div class="col-6">
-        <video id="js-local-video" class="img-fluid" autoplay muted playsinline></video>
+        <canvas id="local-canvas" width="AUTO" class="img-fluid"></canvas>
       </div>
       <div class="col-6">
-        <canvas class="output_canvas" class="img-fluid" class="img-fluid"></canvas>
+        <canvas id="remote-canvas" width="AUTO" class="img-fluid"></canvas>
       </div>
     </div>
     <div class="row">
       <div class="col-12">
-        <div id="js-videos-container" class="videos-container">
+        <div id="videos-container" class="videos-container">
         </div>
       </div>
     </div>
@@ -81,8 +82,10 @@ chrome://settings/content/microphone
 
   <script type="text/javascript">
 
-    const localVideo = document.getElementById('js-local-video');
-    const videosContainer = document.getElementById('js-videos-container');
+    const localVideoElm = document.getElementById('local-video');
+    const localCanvasElm = document.getElementById('local-canvas');
+    const localCtx = localCanvasElm.getContext('2d');
+    const videosContainer = document.getElementById('videos-container');
     const yourName = document.getElementById('your-name');
     const roomId = document.getElementById('js-room-id');
     const joinTrigger = document.getElementById('js-join-trigger');
@@ -92,6 +95,59 @@ chrome://settings/content/microphone
     var remoteVideoWidth = 0;        // 最初ビデオとの大きさを合わせるため
     var remoteVideoHeight = 0;
     var peer = null;
+
+    // 画像解析関連
+    const remoteCanvasElm = document.getElementById('remote-canvas');
+    //****const controlsElement = document.getElementsByClassName('control-panel')[0];
+    const canvasCtx = remoteCanvasElm.getContext('2d');
+    const options = {
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    };
+    var hands = null;
+    var timeout = null;
+    var oshakuMode = false;
+    var frameRate = 1;
+    var lastDegree = -100;
+    var port = null;
+
+
+    function copyVideo() {
+      // Videoのコピー
+      //const w = localVideoElm.clientWidth;
+      //const h = localVideoElm.clientHeight;
+      const w = localCanvasElm.clientWidth;
+      const h = Math.trunc(w * 0.7);
+      localCanvasElm.width = w;
+      localCanvasElm.height = h;
+      localCtx.save();
+      localCtx.scale(-1, 1);
+      localCtx.translate(-w, 0);
+      //localCanvasElm.width = localVideoElm.clientWidth;
+      //localCanvasElm.height = localVideoElm.clientHeight;
+      localCtx.clearRect(0, 0, w, h);
+      localCtx.drawImage(localVideoElm, 0, 0, w, h);
+      localCtx.restore();
+    if (oshakuMode) {
+      try {
+        if (!hands) {
+          hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+          }});
+          hands.onResults(onResults);
+          hands.setOptions(options);
+        }
+        // 解析を依頼
+        hands.send({image: localCanvasElm});
+      } catch (e) {
+        alert('画像解析でエラーが発生しました。\n' + e);
+        hands = null;
+      }
+    }
+      setTimeout(copyVideo, 100);
+    }
 
     (async function main() {
       navigator.mediaDevices.enumerateDevices()
@@ -108,7 +164,8 @@ chrome://settings/content/microphone
         video: true,
         audio: true,
       });
-      localVideo.srcObject = localStream;
+      localVideoElm.srcObject = localStream;
+      setTimeout(copyVideo, 1000);
 
       // 入室ボタン
       joinTrigger.addEventListener('click', () => {
@@ -157,8 +214,10 @@ chrome://settings/content/microphone
             const remoteVideo = document.createElement('video');
             remoteVideo.srcObject = stream;
             if (remoteVideoWidth == 0) {
-              remoteVideo.width = localVideo.clientWidth * 0.3;
-              remoteVideo.height = localVideo.clientHeight * 0.3;
+              //remoteVideo.width = localVideoElm.clientWidth * 0.3;
+              //remoteVideo.height = localVideoElm.clientHeight * 0.3;
+              remoteVideo.width = localCanvasElm.clientWidth * 0.3;
+              remoteVideo.height = localCanvasElm.clientHeight * 0.3;
             } else {
               remoteVideo.width = remoteVideoWidth;
               remoteVideo.height = remoteVideoHeight;
@@ -212,8 +271,8 @@ chrome://settings/content/microphone
               clearTimeout(timeout);
               timeout = null;
               hands = null;
-              canvasElement.width = 0;
-              canvasElement.height = 0;
+              remoteCanvasElm.width = 0;
+              remoteCanvasElm.height = 0;
               currentPeerId = null;
             }
           });
@@ -224,8 +283,8 @@ chrome://settings/content/microphone
             clearTimeout(timeout);
             timeout = null;
             hands = null;
-            canvasElement.width = 0;
-            canvasElement.height = 0;
+            remoteCanvasElm.width = 0;
+            remoteCanvasElm.height = 0;
             currentPeerId = null;
             const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
             Array.from(remoteVideos)
@@ -268,23 +327,6 @@ chrome://settings/content/microphone
     })();
 
 
-    // 画像解析関連
-    const canvasElement = document.getElementsByClassName('output_canvas')[0];
-    const controlsElement = document.getElementsByClassName('control-panel')[0];
-    const canvasCtx = canvasElement.getContext('2d');
-    const options = {
-      maxNumHands: 1,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
-    };
-    var hands = null;
-    var timeout = null;
-    var oshakuMode = false;
-    var frameRate = 1;
-    var lastDegree = -100;
-    var port = null;
-
     function chkOshaku(value) {
       oshakuMode = value;
       if (value && !port) {
@@ -307,22 +349,19 @@ chrome://settings/content/microphone
       }
       drawing = true;
       var degree = 0;
-      //canvasCtx.save();
-  //    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-  //    canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
       if (results.multiHandLandmarks && results.multiHandedness) {
         for (let index = 0; index < results.multiHandLandmarks.length; index++) {
           const landmarks = results.multiHandLandmarks[index];
-          drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
-          drawLandmarks(canvasCtx, landmarks, { color: 'green', fillColor: 'white'});
+          drawConnectors(localCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
+          drawLandmarks(localCtx, landmarks, { color: 'green', fillColor: 'white'});
 
-          canvasCtx.strokeStyle = 'red';
-          canvasCtx.lineWidth = 10;
-          canvasCtx.beginPath();
-          canvasCtx.moveTo(landmarks[4]['x'] * canvasElement.width, landmarks[4]['y'] * canvasElement.height);     // 親指：指先
-          canvasCtx.lineTo(landmarks[20]['x'] * canvasElement.width, landmarks[20]['y'] * canvasElement.height);   // 小指：指先
-          canvasCtx.closePath();
-          canvasCtx.stroke();
+          localCtx.strokeStyle = 'red';
+          localCtx.lineWidth = 10;
+          localCtx.beginPath();
+          localCtx.moveTo(landmarks[4]['x'] * localCanvasElm.width, landmarks[4]['y'] * localCanvasElm.height);     // 親指：指先
+          localCtx.lineTo(landmarks[20]['x'] * localCanvasElm.width, landmarks[20]['y'] * localCanvasElm.height);   // 小指：指先
+          localCtx.closePath();
+          localCtx.stroke();
 
           var radian = Math.atan2(landmarks[4]['y'] - landmarks[20]['y'], landmarks[4]['x'] - landmarks[20]['x'])
           degree = Math.floor(radian * 180 / Math.PI);
@@ -337,7 +376,6 @@ chrome://settings/content/microphone
         }
       }
       drawing = false;
-      //canvasCtx.restore();
       if (Math.abs(degree - lastDegree) > 2) {
         // サーバへ送りたいデータ
         const text = degree + '\r';
@@ -346,35 +384,17 @@ chrome://settings/content/microphone
       }
     }
 
-    // 画像解析（定期的に呼ぶ）
+    // リモートの画像表示（定期的に呼ぶ）
     function kaiseki() {
-//      console.log('videoElement', videoElement.clientWidth, videoElement.clientHeight);
-//      console.log('canvasElement', canvasElement.width, canvasElement.height)
       if (!drawing) {
         drawing = true;
         const videoElement = videosContainer.querySelector(`[data-peer-id="${currentPeerId}"]`);
 
         // 解析元の画像表示
-        canvasElement.width = localVideo.clientWidth * 1;
-        canvasElement.height = localVideo.clientHeight * 1;
-        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-        if (oshakuMode) {
-          try {
-            if (!hands) {
-              hands = new Hands({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-              }});
-              hands.onResults(onResults);
-              hands.setOptions(options);
-            }
-            // 解析を依頼
-            hands.send({image: videoElement});
-          } catch (e) {
-            alert('画像解析でエラーが発生しました。\n' + e);
-            hands = null;
-          }
-        }
+        remoteCanvasElm.width = localCanvasElm.clientWidth * 1;
+        remoteCanvasElm.height = localCanvasElm.clientHeight * 1;
+        canvasCtx.clearRect(0, 0, remoteCanvasElm.width, remoteCanvasElm.height);
+        canvasCtx.drawImage(videoElement, 0, 0, remoteCanvasElm.width, remoteCanvasElm.height);
         drawing = false;
       }
       timeout = setTimeout(kaiseki, 1000 / frameRate);
