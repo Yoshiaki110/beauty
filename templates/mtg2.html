@@ -92,7 +92,6 @@ chrome://settings/content/microphone
 
     // 画像解析関連
     const remoteCanvasElm = document.getElementById('remote-canvas');
-    //****const controlsElement = document.getElementsByClassName('control-panel')[0];
     const canvasCtx = remoteCanvasElm.getContext('2d');
     const options = {
       maxNumHands: 1,
@@ -104,7 +103,6 @@ chrome://settings/content/microphone
     var timeout = null;
     var oshakuSendMode = false;
     var oshakuRecvMode = false;
-    var frameRate = 5;
     var lastDegree = -100;
     var port = null;
     var room = null;
@@ -121,8 +119,6 @@ chrome://settings/content/microphone
       localCtx.save();
       localCtx.scale(-1, 1);
       localCtx.translate(-w, 0);
-      //localCanvasElm.width = localVideoElm.clientWidth;
-      //localCanvasElm.height = localVideoElm.clientHeight;
       localCtx.clearRect(0, 0, w, h);
       localCtx.drawImage(localVideoElm, 0, 0, w, h);
       localCtx.restore();
@@ -142,7 +138,7 @@ chrome://settings/content/microphone
           hands = null;
         }
       }
-      setTimeout(copyVideo, 100);
+      setTimeout(copyVideo, 200);
     }
 
     (async function main() {
@@ -156,7 +152,6 @@ chrome://settings/content/microphone
         console.error('enumerateDevide ERROR:', err);
       });
       const localStream = await navigator.mediaDevices.getUserMedia({
-//        video: { width: { min: 320, max: 320 }, height: { min: 240, max: 240 } },
         video: true,
         audio: true,
       });
@@ -210,8 +205,6 @@ chrome://settings/content/microphone
             const remoteVideo = document.createElement('video');
             remoteVideo.srcObject = stream;
             if (remoteVideoWidth == 0) {
-              //remoteVideo.width = localVideoElm.clientWidth * 0.3;
-              //remoteVideo.height = localVideoElm.clientHeight * 0.3;
               remoteVideo.width = localCanvasElm.clientWidth * 0.3;
               remoteVideo.height = localCanvasElm.clientHeight * 0.3;
             } else {
@@ -246,7 +239,7 @@ chrome://settings/content/microphone
               radio.checked = true;
               // 受信した画像を解析する
               currentPeerId = stream.peerId;
-              timeout = setTimeout(kaiseki, 1000);
+              timeout = setTimeout(remote, 1000);
             }
           });
 
@@ -278,13 +271,7 @@ chrome://settings/content/microphone
 
             const remoteVideos = videosContainer.querySelectorAll('[data-peer-id]');
             if (remoteVideos.length == 0) {
-              clearTimeout(timeout);
-              timeout = null;
-              hands = null;
-              room = null;
-              remoteCanvasElm.width = 0;
-              remoteCanvasElm.height = 0;
-              currentPeerId = null;
+              console.log('全員がいなくなった');
             }
           });
 
@@ -326,6 +313,7 @@ chrome://settings/content/microphone
             oshakuRecvMode = false;
           }, { once: true });
         });
+
         peer.on("error", (error) => {
           console.log(`===error===\n${error.type}: ${error.message}`);
           alert(`Webミーティングでエラーが発生しました。\n${error.type}: ${error.message}`);
@@ -342,12 +330,13 @@ chrome://settings/content/microphone
       });
     })();
 
-
+    // お酌をする
     function chkSendOshaku(value) {
       oshakuSendMode = value;
       hands = null;
     }
 
+    // お酌をうける
     function chkRecvOshaku(value) {
       oshakuRecvMode = value;
       if (value && !port) {
@@ -395,18 +384,10 @@ chrome://settings/content/microphone
       if (room) {
         room.send("" + degree);
       }
-/*
-      if (Math.abs(degree - lastDegree) > 2) {
-        // サーバへ送りたいデータ
-        const text = degree + '\r';
-        writeSerial(text);
-        lastDegree = degree;
-      }
-*/
     }
 
     // リモートの画像表示（定期的に呼ぶ）
-    function kaiseki() {
+    function remote() {
       if (!drawing) {
         drawing = true;
         const videoElement = videosContainer.querySelector(`[data-peer-id="${currentPeerId}"]`);
@@ -418,7 +399,7 @@ chrome://settings/content/microphone
         canvasCtx.drawImage(videoElement, 0, 0, remoteCanvasElm.width, remoteCanvasElm.height);
         drawing = false;
       }
-      timeout = setTimeout(kaiseki, 1000 / frameRate);
+      timeout = setTimeout(remote, 200);
     }
 
     // Web Serial
