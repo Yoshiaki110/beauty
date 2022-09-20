@@ -90,6 +90,7 @@ chrome://settings/content/microphone
     var remoteVideoWidth = 0;        // 最初ビデオとの大きさを合わせるため
     var remoteVideoHeight = 0;
     var peer = null;
+    var drawing = false;
 
     // 画像解析関連
     const remoteCanvasElm = document.getElementById('remote-canvas');
@@ -113,6 +114,7 @@ chrome://settings/content/microphone
       // Videoのコピー
       //const w = localVideoElm.clientWidth;
       //const h = localVideoElm.clientHeight;
+      drawing = true;
       const w = localCanvasElm.clientWidth;
       const h = Math.trunc(w * 0.7);
       localCanvasElm.width = w;
@@ -123,6 +125,7 @@ chrome://settings/content/microphone
       localCtx.clearRect(0, 0, w, h);
       localCtx.drawImage(localVideoElm, 0, 0, w, h);
       localCtx.restore();
+      drawing = false;
       if (oshakuSendMode) {
         try {
           if (!hands) {
@@ -132,8 +135,10 @@ chrome://settings/content/microphone
             hands.onResults(onResults);
             hands.setOptions(options);
           }
-          // 解析を依頼
-          hands.send({image: localCanvasElm});
+          if (!drawing) {
+            // 解析を依頼
+            hands.send({image: localCanvasElm});
+          }
         } catch (e) {
           alert('画像解析でエラーが発生しました。\n' + e);
           hands = null;
@@ -352,6 +357,9 @@ chrome://settings/content/microphone
 
     // 画像解析コールバック
     function onResults(results) {
+      if (drawing) {
+        return;
+      }
       var degree = 0;
       if (results.multiHandLandmarks && results.multiHandedness) {
         for (let index = 0; index < results.multiHandLandmarks.length; index++) {
@@ -359,6 +367,8 @@ chrome://settings/content/microphone
           drawConnectors(localCtx, landmarks, HAND_CONNECTIONS, {color: 'blue'});
           drawLandmarks(localCtx, landmarks, { color: 'green', fillColor: 'white'});
 
+          drawing = true;
+          localCtx.save();
           localCtx.strokeStyle = 'red';
           localCtx.lineWidth = 10;
           localCtx.beginPath();
@@ -366,6 +376,8 @@ chrome://settings/content/microphone
           localCtx.lineTo(landmarks[20]['x'] * localCanvasElm.width, landmarks[20]['y'] * localCanvasElm.height);   // 小指：指先
           localCtx.closePath();
           localCtx.stroke();
+          localCtx.restore();
+          drawing = false;
 
           var radian = Math.atan2(landmarks[4]['y'] - landmarks[20]['y'], landmarks[4]['x'] - landmarks[20]['x'])
           degree = Math.floor(radian * 180 / Math.PI);
